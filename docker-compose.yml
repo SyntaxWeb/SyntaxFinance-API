@@ -34,9 +34,7 @@ services:
       MYSQL_DATABASE: mymoney
       MYSQL_USER: mymoney
       MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: secret
     volumes:
       - db_data:/var/lib/mysql
 
