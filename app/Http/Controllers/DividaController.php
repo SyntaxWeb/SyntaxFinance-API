@@ -4,9 +4,50 @@ namespace App\Http\Controllers;
 
 use App\Models\Divida;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class DividaController extends Controller
 {
+    public function storeRecorrentes(Request $request)
+    {
+        $userId = $request->user()->id;
+        $data = $request->validate([
+            'mes_inicio' => ['required', 'string', 'size:7'],
+            'numero_meses' => ['required', 'integer', 'min:1'],
+            'valor' => ['required', 'numeric'],
+            'motivo' => ['required', 'string', 'max:255'],
+            'data' => ['required', 'date'],
+            'status' => ['nullable', 'in:paga,aberta'],
+            'cartao_id' => ['prohibited'],
+            'parcelamento_id' => ['prohibited'],
+        ]);
+
+        $startMonth = Carbon::createFromFormat('Y-m', $data['mes_inicio'])->startOfMonth();
+        $baseDay = Carbon::parse($data['data'])->day;
+        $numeroMeses = (int) $data['numero_meses'];
+        $status = $data['status'] ?? 'aberta';
+
+        $dividas = [];
+        for ($i = 0; $i < $numeroMeses; $i++) {
+            $date = $startMonth->copy()->addMonthsNoOverflow($i);
+            $day = min($baseDay, $date->daysInMonth);
+            $date = $date->day($day);
+
+            $dividas[] = Divida::create([
+                'user_id' => $userId,
+                'mes' => $date->format('Y-m'),
+                'valor' => $data['valor'],
+                'motivo' => $data['motivo'],
+                'categoria' => 'fixa',
+                'data' => $date->toDateString(),
+                'status' => $status,
+            ]);
+        }
+
+        return response()->json($dividas, 201);
+    }
+
     public function index(Request $request)
     {
         $userId = $request->user()->id;
@@ -22,6 +63,7 @@ class DividaController extends Controller
 
     public function store(Request $request)
     {
+        $userId = $request->user()->id;
         $data = $request->validate([
             'mes' => ['required', 'string', 'size:7'],
             'valor' => ['required', 'numeric'],
@@ -29,11 +71,19 @@ class DividaController extends Controller
             'categoria' => ['required', 'in:cartao,fixa,variavel,outro'],
             'data' => ['required', 'date'],
             'status' => ['required', 'in:paga,aberta'],
-            'cartao_id' => ['nullable', 'integer', 'exists:cartoes,id'],
-            'parcelamento_id' => ['nullable', 'integer', 'exists:parcelamentos,id'],
+            'cartao_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('cartoes', 'id')->where('user_id', $userId),
+            ],
+            'parcelamento_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('parcelamentos', 'id')->where('user_id', $userId),
+            ],
         ]);
 
-        $data['user_id'] = $request->user()->id;
+        $data['user_id'] = $userId;
 
         $divida = Divida::create($data);
 
@@ -51,6 +101,7 @@ class DividaController extends Controller
     {
         abort_if($divida->user_id !== $request->user()->id, 403);
 
+        $userId = $request->user()->id;
         $data = $request->validate([
             'mes' => ['sometimes', 'string', 'size:7'],
             'valor' => ['sometimes', 'numeric'],
@@ -58,8 +109,16 @@ class DividaController extends Controller
             'categoria' => ['sometimes', 'in:cartao,fixa,variavel,outro'],
             'data' => ['sometimes', 'date'],
             'status' => ['sometimes', 'in:paga,aberta'],
-            'cartao_id' => ['nullable', 'integer', 'exists:cartoes,id'],
-            'parcelamento_id' => ['nullable', 'integer', 'exists:parcelamentos,id'],
+            'cartao_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('cartoes', 'id')->where('user_id', $userId),
+            ],
+            'parcelamento_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('parcelamentos', 'id')->where('user_id', $userId),
+            ],
         ]);
 
         $divida->update($data);

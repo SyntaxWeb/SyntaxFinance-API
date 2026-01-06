@@ -16,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('profile', [AuthController::class, 'updateProfile']);
     Route::post('logout', [AuthController::class, 'logout']);
 
+    Route::post('dividas/recorrentes', [DividaController::class, 'storeRecorrentes']);
     Route::apiResource('rendas', RendaController::class);
     Route::apiResource('dividas', DividaController::class);
     Route::apiResource('cartoes', CartaoController::class);

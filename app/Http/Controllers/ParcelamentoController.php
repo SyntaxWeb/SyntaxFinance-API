@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Parcelamento;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 
 class ParcelamentoController extends Controller
@@ -22,8 +23,13 @@ class ParcelamentoController extends Controller
 
     public function store(Request $request)
     {
+        $userId = $request->user()->id;
         $data = $request->validate([
-            'cartao_id' => ['required', 'integer', 'exists:cartoes,id'],
+            'cartao_id' => [
+                'required',
+                'integer',
+                Rule::exists('cartoes', 'id')->where('user_id', $userId),
+            ],
             'descricao' => ['required', 'string', 'max:255'],
             'valor_total' => ['required', 'numeric'],
             'numero_parcelas' => ['required', 'integer', 'min:1'],
@@ -35,7 +41,7 @@ class ParcelamentoController extends Controller
             $data['parcela_atual'] = 1;
         }
 
-        $data['user_id'] = $request->user()->id;
+        $data['user_id'] = $userId;
 
         $parcelamento = Parcelamento::create($data);
 
@@ -53,8 +59,13 @@ class ParcelamentoController extends Controller
     {
         abort_if($parcelamento->user_id !== $request->user()->id, 403);
 
+        $userId = $request->user()->id;
         $data = $request->validate([
-            'cartao_id' => ['sometimes', 'integer', 'exists:cartoes,id'],
+            'cartao_id' => [
+                'sometimes',
+                'integer',
+                Rule::exists('cartoes', 'id')->where('user_id', $userId),
+            ],
             'descricao' => ['sometimes', 'string', 'max:255'],
             'valor_total' => ['sometimes', 'numeric'],
             'numero_parcelas' => ['sometimes', 'integer', 'min:1'],
