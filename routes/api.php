@@ -10,6 +10,7 @@ use App\Http\Controllers\CofrinhoController;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+Route::post('login/google', [AuthController::class, 'loginWithGoogle']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [AuthController::class, 'me']);

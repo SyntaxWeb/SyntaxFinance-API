@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use App\Models\User;
+use Google_Client;
 
 class AuthController extends Controller
 {
@@ -82,5 +84,48 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logout efetuado']);
+    }
+
+    public function loginWithGoogle(Request $request)
+    {
+        $request->validate([
+            'credential' => ['required', 'string'],
+        ]);
+
+        $clientId = config('services.google.client_id');
+        if (! $clientId) {
+            return response()->json(['message' => 'Google client id não configurado'], 500);
+        }
+
+        $client = new Google_Client(['client_id' => $clientId]);
+        try {
+            $payload = $client->verifyIdToken($request->string('credential'));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Token do Google inválido'], 401);
+        }
+
+        if (! $payload || empty($payload['email'])) {
+            return response()->json(['message' => 'Token do Google inválido'], 401);
+        }
+
+        $user = User::firstOrCreate(
+            ['email' => $payload['email']],
+            [
+                'name' => $payload['name'] ?? $payload['email'],
+                'password' => Str::random(32),
+            ]
+        );
+
+        if ($payload['name'] ?? false) {
+            $user->name = $payload['name'];
+            $user->save();
+        }
+
+        $token = $user->createToken('web')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ]);
     }
 }
